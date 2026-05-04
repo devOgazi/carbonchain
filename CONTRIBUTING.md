@@ -33,7 +33,7 @@ By participating in this project, you agree to abide by our Code of Conduct. Ple
 2. Clone your fork locally:
 
 ```bash
-git clone git@github.com:YOUR_USERNAME/carbonchain.git
+git clone https://github.com/legend-esc/carbonchain.git
 cd carbonchain
 ```
 
