@@ -3,6 +3,8 @@ import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { StellarModule } from './stellar/stellar.module';
+import { CreditsModule } from './credits/credits.module';
+import { ProjectsModule } from './projects/projects.module';
 
 @Module({
   imports: [
@@ -10,9 +12,12 @@ import { StellarModule } from './stellar/stellar.module';
       isGlobal: true,
     }),
     StellarModule,
+    CreditsModule,
+    ProjectsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
 })
 export class AppModule {}
+
 

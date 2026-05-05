@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
+  Account,
   Horizon,
   Networks,
   Transaction,
@@ -157,7 +158,42 @@ export class StellarService implements OnModuleInit {
     throw new Error(`Transaction polling timed out for hash: ${hash}`);
   }
 
+  async readContract(
+    contractId: string,
+    method: string,
+    args: xdr.ScVal[] = [],
+  ): Promise<xdr.ScVal | undefined> {
+    const tx = new TransactionBuilder(
+      new Account('GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA', '0'),
+      {
+        fee: '100',
+        networkPassphrase: this.networkPassphrase,
+      },
+    )
+      .addOperation(
+        Operation.invokeHostFunction({
+          func: xdr.HostFunction.hostFunctionTypeInvokeContract(
+            new xdr.InvokeContractArgs({
+              contractAddress: Address.fromString(contractId).toScAddress(),
+              functionName: method,
+              args: args,
+            }),
+          ),
+          auth: [],
+        }),
+      )
+      .setTimeout(30)
+      .build();
+
+    const simulation = await this.simulateTransaction(tx);
+    if (rpc.Api.isSimulationSuccess(simulation) && simulation.result) {
+      return simulation.result.retval;
+    }
+    return undefined;
+  }
+
   getHorizonServer(): Horizon.Server {
+
     return this.horizonServer;
   }
 
