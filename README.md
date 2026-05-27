@@ -61,7 +61,7 @@ let credit_id = contract.submit_credit(
         vintage_year: 2024,
         methodology: String::from_str(&env, "VCS"),
         geography: String::from_str(&env, "NG"),
-        tonnes: 1_000_000,   // 1 tonne (1 tonne = 1_000_000 units; min unit = 100_000 = 0.1 tonne)
+        tonnes: 1_000_000,   // 1 tonne (1 tonne = 1_000_000 units, i.e. TONNES_SCALE)
         ipfs_hash: String::from_str(&env, "bafybei..."),
     },
 );
@@ -513,6 +513,7 @@ See [SECURITY.md](SECURITY.md) for the vulnerability reporting and responsible d
 - Immutable audit logs — no delete functions on retirement or session records
 - Authorization checks on all state-mutating operations
 - `.claudeignore` excludes `ADMIN_SECRET_KEY` and all secrets from Claude Code context
+- `cargo audit` runs in CI on every push/PR — high-severity CVEs in Rust dependencies fail the build
 
 ---
 

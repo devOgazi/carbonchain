@@ -37,13 +37,25 @@ jobs:
           cache: "npm"
           cache-dependency-path: api/package-lock.json
       - name: Install Dependencies
-        run: cd api && npm ci
+        run: cd api && npm ci --legacy-peer-deps
       - name: Lint
         run: cd api && npm run lint
       - name: Build
         run: cd api && npm run build
       - name: Run Tests
         run: cd api && npm run test
+
+  security:
+    name: Dependency Vulnerability Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --locked
+      - name: Run cargo audit
+        run: cd contracts && cargo audit --deny warnings
 
   frontend:
     name: Frontend SPA (Angular)
@@ -61,4 +73,4 @@ jobs:
       - name: Build
         run: cd frontend && npm run build
       - name: Run Tests
-        run: cd frontend && npm run test -- --no-watch
+        run: cd frontend && npm run test:ci
