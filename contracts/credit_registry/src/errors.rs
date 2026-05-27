@@ -19,9 +19,5 @@ pub enum CarbonChainError {
     ContractPaused = 112,
     InvalidNonce = 113,
     NoPendingAdmin = 114,
-    ProjectNotFound = 115,
-    ProjectAlreadyExists = 116,
-    InvalidProjectMetadata = 117,
-    DisputeNotFound = 118,
-    InvalidDisputeStatus = 119,
+    InvalidSplit = 115,
 }

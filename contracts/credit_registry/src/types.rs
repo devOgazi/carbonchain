@@ -40,19 +40,9 @@ pub struct CreditMetadata {
 
 #[derive(Clone, Debug, PartialEq)]
 #[contracttype]
-pub struct ProjectMetadata {
-    pub owner: Address,
-    pub name: String,
-    pub description: String,
-    pub location: String,
-    pub created_at: u64,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq)]
-#[contracttype]
-pub enum DisputeOutcome {
-    Approved = 0,
-    Rejected = 1,
+pub struct VerifierReputation {
+    pub approval_count: u64,
+    pub dispute_count: u64,
 }
 
 #[derive(Clone)]
@@ -66,8 +56,7 @@ pub enum DataKey {
     RetirementContract,
     CreditNonce,
     Paused,
-    VerifierServices(Address),
-    PendingAdmin,
     Nonce(Address),
-    Dispute(BytesN<32>),
+    PendingAdmin,
+    VerifierReputation(Address),
 }
