@@ -14,6 +14,7 @@ pub enum CreditStatus {
 pub struct CreditMetadata {
     pub project_id: String,
     pub issuer: Address,
+    pub owner: Address,
     pub vintage_year: u32,
     pub methodology: String,
     pub geography: String,
@@ -21,6 +22,13 @@ pub struct CreditMetadata {
     pub ipfs_hash: String,
     pub status: CreditStatus,
     pub issued_at: u64,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+#[contracttype]
+pub struct VerifierReputation {
+    pub approval_count: u64,
+    pub dispute_count: u64,
 }
 
 #[derive(Clone)]
@@ -33,4 +41,7 @@ pub enum DataKey {
     RetirementContract,
     CreditNonce,
     Paused,
+    Nonce(Address),
+    PendingAdmin,
+    VerifierReputation(Address),
 }

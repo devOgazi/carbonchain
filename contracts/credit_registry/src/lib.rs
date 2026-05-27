@@ -15,11 +15,14 @@ use crate::storage::{
     add_credit_to_project, get_credits_by_project,
     set_retirement_contract, get_retirement_contract,
     set_paused, is_paused,
+    get_nonce, consume_nonce,
+    get_verifier_reputation, set_verifier_reputation,
+    increment_approval_count, increment_dispute_count,
 };
-use crate::types::{CreditMetadata, CreditStatus, DataKey};
+use crate::types::{CreditMetadata, CreditStatus, DataKey, VerifierReputation};
 use crate::events::{
     credit_submitted, credit_minted, verifier_added, verifier_removed,
-    contract_paused, contract_unpaused,
+    contract_paused, contract_unpaused, credit_transferred, credit_split, batch_retired,
 };
 
 #[cfg(not(feature = "library"))]
@@ -184,6 +187,7 @@ impl CreditRegistry {
         let metadata = CreditMetadata {
             project_id: project_id.clone(),
             issuer: issuer.clone(),
+            owner: issuer.clone(),
             vintage_year,
             methodology,
             geography,
@@ -200,7 +204,7 @@ impl CreditRegistry {
         Ok(id)
     }
 
-    pub fn approve_and_mint(env: Env, verifier: Address, credit_id: BytesN<32>) -> Result<(), CarbonChainError> {
+    pub fn approve_and_mint(env: Env, verifier: Address, credit_id: BytesN<32>, nonce: u64) -> Result<(), CarbonChainError> {
         if is_paused(&env) {
             return Err(CarbonChainError::ContractPaused);
         }
@@ -217,11 +221,12 @@ impl CreditRegistry {
         }
         credit.status = CreditStatus::Active;
         set_credit(&env, &credit_id, &credit);
+        increment_approval_count(&env, &verifier);
         credit_minted(&env, verifier, credit_id);
         Ok(())
     }
 
-    pub fn flag_credit(env: Env, verifier: Address, credit_id: BytesN<32>, reason: String) -> Result<(), CarbonChainError> {
+    pub fn flag_credit(env: Env, verifier: Address, credit_id: BytesN<32>, reason: String, nonce: u64) -> Result<(), CarbonChainError> {
         if is_paused(&env) {
             return Err(CarbonChainError::ContractPaused);
         }
@@ -238,6 +243,7 @@ impl CreditRegistry {
         }
         credit.status = CreditStatus::Flagged;
         set_credit(&env, &credit_id, &credit);
+        increment_dispute_count(&env, &verifier);
         crate::events::credit_flagged(&env, credit_id, reason);
         Ok(())
     }
@@ -259,6 +265,80 @@ impl CreditRegistry {
         Ok(())
     }
 
+    // ── Issue #85: Credit Transfer ───────────────────────────────────────────
+
+    pub fn transfer_credit(env: Env, from: Address, to: Address, credit_id: BytesN<32>, nonce: u64) -> Result<(), CarbonChainError> {
+        if is_paused(&env) {
+            return Err(CarbonChainError::ContractPaused);
+        }
+        from.require_auth();
+        if !consume_nonce(&env, &from, nonce) {
+            return Err(CarbonChainError::InvalidNonce);
+        }
+        let mut credit = get_credit(&env, &credit_id).ok_or(CarbonChainError::CreditNotFound)?;
+        if credit.owner != from {
+            return Err(CarbonChainError::Unauthorized);
+        }
+        credit.owner = to.clone();
+        set_credit(&env, &credit_id, &credit);
+        credit_transferred(&env, from, to, credit_id);
+        Ok(())
+    }
+
+    // ── Issue #87: Credit Splitting ──────────────────────────────────────────
+
+    pub fn split_credit(env: Env, caller: Address, credit_id: BytesN<32>, split_tonnes: i128, nonce: u64) -> Result<(BytesN<32>, BytesN<32>), CarbonChainError> {
+        if is_paused(&env) {
+            return Err(CarbonChainError::ContractPaused);
+        }
+        caller.require_auth();
+        if !consume_nonce(&env, &caller, nonce) {
+            return Err(CarbonChainError::InvalidNonce);
+        }
+        let mut original = get_credit(&env, &credit_id).ok_or(CarbonChainError::CreditNotFound)?;
+        if original.owner != caller {
+            return Err(CarbonChainError::Unauthorized);
+        }
+        if split_tonnes <= 0 || split_tonnes >= original.tonnes {
+            return Err(CarbonChainError::InvalidSplit);
+        }
+
+        let remaining_tonnes = original.tonnes - split_tonnes;
+        
+        // Generate IDs for child credits
+        let nonce_val: u64 = env.storage().instance().get(&DataKey::CreditNonce).unwrap_or(0u64);
+        env.storage().instance().set(&DataKey::CreditNonce, &(nonce_val + 1));
+        let mut preimage1 = credit_id.clone().to_xdr(&env);
+        preimage1.append(&nonce_val.to_xdr(&env));
+        let child1_id: BytesN<32> = env.crypto().sha256(&preimage1).into();
+
+        let nonce_val2: u64 = env.storage().instance().get(&DataKey::CreditNonce).unwrap_or(0u64);
+        env.storage().instance().set(&DataKey::CreditNonce, &(nonce_val2 + 1));
+        let mut preimage2 = credit_id.clone().to_xdr(&env);
+        preimage2.append(&nonce_val2.to_xdr(&env));
+        let child2_id: BytesN<32> = env.crypto().sha256(&preimage2).into();
+
+        // Create child credits with same metadata
+        let mut child1 = original.clone();
+        child1.tonnes = split_tonnes;
+        child1.owner = caller.clone();
+        set_credit(&env, &child1_id, &child1);
+        add_credit_to_project(&env, &original.project_id, &child1_id);
+
+        let mut child2 = original.clone();
+        child2.tonnes = remaining_tonnes;
+        child2.owner = caller.clone();
+        set_credit(&env, &child2_id, &child2);
+        add_credit_to_project(&env, &original.project_id, &child2_id);
+
+        // Retire original credit
+        original.status = CreditStatus::Retired;
+        set_credit(&env, &credit_id, &original);
+
+        credit_split(&env, credit_id, child1_id.clone(), child2_id.clone());
+        Ok((child1_id, child2_id))
+    }
+
     // ── Queries ──────────────────────────────────────────────────────────────
 
     pub fn get_credit(env: Env, credit_id: BytesN<32>) -> Result<CreditMetadata, CarbonChainError> {
@@ -271,6 +351,12 @@ impl CreditRegistry {
 
     pub fn get_nonce(env: Env, address: Address) -> u64 {
         get_nonce(&env, &address)
+    }
+
+    // ── Issue #84: Verifier Reputation ───────────────────────────────────────
+
+    pub fn get_verifier_reputation(env: Env, verifier: Address) -> VerifierReputation {
+        get_verifier_reputation(&env, &verifier)
     }
 
     pub fn propose_admin(env: Env, admin: Address, new_admin: Address) -> Result<(), CarbonChainError> {
