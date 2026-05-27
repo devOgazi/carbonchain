@@ -1,28 +1,60 @@
 import { Component, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Offer } from '@shared';
-import { MarketplaceListComponent } from './marketplace-list.component';
-import { OfferDetailComponent } from './offer-detail.component';
+import { MarketplaceStore } from '../core/store/marketplace.store';
+import { AuthService } from '../core/services/auth.service';
+import { StellarWalletService } from '../core/services/stellar-wallet.service';
+import { ConnectWalletComponent } from '../core/components/connect-wallet.component';
+import { TranslatePipe } from '../core/pipes/translate.pipe';
 
 @Component({
   selector: 'app-marketplace',
   standalone: true,
-  imports: [CommonModule, MarketplaceListComponent, OfferDetailComponent],
+  imports: [CommonModule, ConnectWalletComponent, TranslatePipe],
   template: `
     <div class="marketplace">
-      <h1>Marketplace</h1>
+      <h1>{{ 'marketplace.title' | translate }}</h1>
 
-      <app-marketplace-list (offerSelected)="selectedOffer.set($event)" />
-
-      @if (selectedOffer()) {
-        <div class="overlay" (click)="selectedOffer.set(null)" aria-hidden="true"></div>
-        <div class="modal">
-          <app-offer-detail
-            [offer]="selectedOffer()!"
-            (closed)="selectedOffer.set(null)"
-            (buy)="onBuy($event)"
-          />
+      @if (!auth.isAuthenticated()) {
+        <div class="auth-prompt">
+          <p>{{ 'marketplace.walletPrompt' | translate }}</p>
+          <app-connect-wallet />
         </div>
+      } @else {
+        <div class="toolbar">
+          <span class="subtitle">{{ 'marketplace.listingsFor' | translate }} {{ wallet.publicKey()! | slice:0:8 }}…</span>
+          <button class="btn btn-primary" (click)="refresh()">{{ 'marketplace.refresh' | translate }}</button>
+        </div>
+
+        @if (store.isLoading()) {
+          <p class="status">{{ 'marketplace.loading' | translate }}</p>
+        } @else if (store.error()) {
+          <p class="error">{{ store.error() }}</p>
+        } @else if (store.activeOffers().length === 0) {
+          <p class="status">{{ 'marketplace.noListings' | translate }}</p>
+        } @else {
+          <table class="offer-table">
+            <thead>
+              <tr>
+                <th>{{ 'marketplace.col.id' | translate }}</th>
+                <th>{{ 'marketplace.col.creditId' | translate }}</th>
+                <th>{{ 'marketplace.col.tonnes' | translate }}</th>
+                <th>{{ 'marketplace.col.price' | translate }}</th>
+                <th>{{ 'marketplace.col.status' | translate }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (offer of store.activeOffers(); track offer.id) {
+                <tr>
+                  <td>{{ offer.id }}</td>
+                  <td class="mono">{{ offer.credit_id | slice:0:12 }}…</td>
+                  <td>{{ formatTonnes(offer.tonnes_available) }}</td>
+                  <td>{{ formatXlm(offer.price_xlm) }}</td>
+                  <td><span class="badge badge-open">{{ offer.status }}</span></td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        }
       }
     </div>
   `,

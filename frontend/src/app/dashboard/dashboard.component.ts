@@ -2,14 +2,13 @@ import { Component, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { CreditStore } from '../core/store/credit.store';
 import { StellarWalletService } from '../core/services/stellar-wallet.service';
-import { ApiService } from '../core/services/api.service';
-import { CreditStatus, RetirementRecord } from '@shared';
-import { firstValueFrom } from 'rxjs';
+import { CreditStatus } from '@shared';
+import { TranslatePipe } from '../core/pipes/translate.pipe';
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, TranslatePipe],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.css',
 })
