@@ -13,6 +13,8 @@ CarbonChain participates in the **Stellar Wave program on Drips** — a monthly,
 - [Development Environment Setup](#development-environment-setup)
 - [Running Tests](#running-tests)
 - [Code Style Guidelines](#code-style-guidelines)
+- [Commit Message Conventions](#commit-message-conventions)
+- [Commit Message Conventions](#commit-message-conventions)
 - [Branch Naming Conventions](#branch-naming-conventions)
 - [Pull Request Process](#pull-request-process)
 - [Issue and PR Templates](#issue-and-pr-templates)
@@ -326,6 +328,56 @@ npx tsc --noEmit
 - Add tests for all new functionality before submitting a PR
 - Update relevant documentation in `docs/` alongside code changes
 - Follow existing patterns in the codebase before introducing new ones
+
+---
+
+## Commit Message Conventions
+
+CarbonChain enforces the [Conventional Commits](https://www.conventionalcommits.org/) specification. Commit messages are validated automatically by a `commit-msg` git hook (husky + commitlint) and drive automated `CHANGELOG.md` generation via [release-please](https://github.com/googleapis/release-please).
+
+### Format
+
+```
+<type>(<optional scope>): <short description>
+
+[optional body]
+
+[optional footer(s)]
+```
+
+### Types
+
+| Type | When to use |
+|---|---|
+| `feat` | A new feature (triggers a minor version bump) |
+| `fix` | A bug fix (triggers a patch version bump) |
+| `docs` | Documentation changes only |
+| `refactor` | Code change that neither fixes a bug nor adds a feature |
+| `test` | Adding or updating tests |
+| `chore` | Maintenance, dependency updates, tooling |
+| `perf` | Performance improvement |
+| `ci` | CI/CD configuration changes |
+
+A `!` after the type (e.g. `feat!:`) or a `BREAKING CHANGE:` footer triggers a **major** version bump.
+
+### Examples
+
+```bash
+feat(credit-registry): add vintage year expiry
+fix(retirement): prevent double-retirement of same credit
+docs: update API reference for submit_credit
+chore: bump stellar-sdk to 15.1.0
+feat!: rename submit_credit nonce parameter
+```
+
+### Setup
+
+The hook is installed automatically when you run `npm install` at the repo root (husky `prepare` script). No manual setup needed.
+
+```bash
+# From repo root
+npm install
+```
 
 ---
 
