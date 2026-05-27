@@ -1,4 +1,4 @@
-use soroban_sdk::{Env, Address, BytesN, Symbol, String};
+use soroban_sdk::{Env, Address, BytesN, Symbol, String, symbol_short};
 
 /// Event topics use Symbol::new for consistent formatting across all contracts.
 /// This ensures off-chain indexers can reliably parse event schemas.
