@@ -30,3 +30,21 @@ contract-ids.testnet.json
 tmp/
 logs/
 *.log
+
+# Test artifacts
+coverage/
+*.lcov
+junit.xml
+test-results/
+__snapshots__/
+*.snap
+
+# Build outputs
+out-tsc/
+*.js.map
+*.d.ts.map
+
+# Package manager
+.npm/
+.yarn/
+yarn.lock
