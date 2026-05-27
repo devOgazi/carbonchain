@@ -113,6 +113,29 @@ impl MrvOracle {
         Ok(true)
     }
 
+    /// Deregister an oracle address. Returns `true` if removed, `false` if not found.
+    pub fn deregister_oracle(env: Env, admin: Address, oracle: Address) -> Result<bool, OracleError> {
+        Self::require_admin(&env, &admin)?;
+        let mut set: Vec<Address> = env
+            .storage().instance()
+            .get(&DataKey::OracleSet)
+            .unwrap_or_else(|| Vec::new(&env));
+        let mut found = false;
+        let mut new_set: Vec<Address> = Vec::new(&env);
+        for addr in set.iter() {
+            if addr != oracle {
+                new_set.push_back(addr);
+            } else {
+                found = true;
+            }
+        }
+        if found {
+            env.storage().instance().set(&DataKey::OracleSet, &new_set);
+            env.events().publish((symbol_short!("orc_rm"),), oracle);
+        }
+        Ok(found)
+    }
+
     /// Submit a new MRV reading for a project.
     /// Anomaly flag is set when the new reading deviates >20% from the previous one.
     pub fn update_mrv_data(
@@ -437,5 +460,63 @@ mod tests {
         let (env, client, _, _) = setup();
         let rando = Address::generate(&env);
         assert!(client.try_pause(&rando).is_err());
+    }
+
+    // ── Deregister oracle tests ──────────────────────────────────────────────
+
+    #[test]
+    fn test_deregister_oracle_removes_oracle() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let id = env.register(MrvOracle, ());
+        let client = MrvOracleClient::new(&env, &id);
+        let admin = Address::generate(&env);
+        let oracle = Address::generate(&env);
+        client.initialize(&admin);
+        let nonce = client.get_nonce(&admin);
+        client.register_oracle(&admin, &oracle, &nonce);
+        let nonce2 = client.get_nonce(&admin);
+        let removed = client.deregister_oracle(&admin, &oracle, &nonce2);
+        assert!(removed);
+        // Verify oracle can no longer submit data
+        let proj = String::from_str(&env, "PROJ-001");
+        let nonce3 = client.get_nonce(&oracle);
+        assert!(client.try_update_mrv_data(&oracle, &proj, &1_000_000, &nonce3).is_err());
+    }
+
+    #[test]
+    fn test_deregister_oracle_not_found_returns_false() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let id = env.register(MrvOracle, ());
+        let client = MrvOracleClient::new(&env, &id);
+        let admin = Address::generate(&env);
+        let oracle = Address::generate(&env);
+        client.initialize(&admin);
+        let nonce = client.get_nonce(&admin);
+        let removed = client.deregister_oracle(&admin, &oracle, &nonce);
+        assert!(!removed);
+    }
+
+    #[test]
+    fn test_deregister_oracle_emits_event() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let id = env.register(MrvOracle, ());
+        let client = MrvOracleClient::new(&env, &id);
+        let admin = Address::generate(&env);
+        let oracle = Address::generate(&env);
+        client.initialize(&admin);
+        let nonce = client.get_nonce(&admin);
+        client.register_oracle(&admin, &oracle, &nonce);
+        let events_before = env.events().all().len();
+        let nonce2 = client.get_nonce(&admin);
+        client.deregister_oracle(&admin, &oracle, &nonce2);
+        let events_after = env.events().all();
+        assert_eq!(events_after.len(), events_before + 1);
+        let (_, topics, _): (_, soroban_sdk::Vec<soroban_sdk::Val>, soroban_sdk::Val) =
+            events_after.get(events_before).unwrap();
+        let expected: soroban_sdk::Val = symbol_short!("orc_rm").into();
+        assert_eq!(topics.get(0).unwrap(), expected);
     }
 }
