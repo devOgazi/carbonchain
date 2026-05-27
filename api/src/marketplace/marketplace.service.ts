@@ -58,6 +58,23 @@ export class MarketplaceService {
     return this.mapOffer(offerId, scValToNative(retval));
   }
 
+  /** Returns all active (open) offers from the contract. */
+  async getListings(): Promise<Offer[]> {
+    const args = [nativeToScVal(true, { type: 'bool' })];
+    try {
+      const retval = await this.stellarService.readContract(
+        this.contractId,
+        'get_active_offers',
+        args,
+      );
+      if (!retval) return [];
+      const raw = scValToNative(retval) as Array<{ id: bigint; [key: string]: unknown }>;
+      return raw.map((item) => this.mapOffer(Number(item.id), item));
+    } catch {
+      return [];
+    }
+  }
+
   async getOffersBySeller(seller: string): Promise<string[]> {
     const args = [nativeToScVal(seller, { type: 'address' })];
     const retval = await this.stellarService.readContract(

@@ -87,6 +87,11 @@ export class ApiService {
 
   // ── Marketplace ───────────────────────────────────────────────────────────
 
+  /** GET /marketplace/listings — all active offers */
+  getListings(): Observable<Offer[]> {
+    return this.http.get<Offer[]>(`${this.baseUrl}/marketplace/listings`);
+  }
+
   /** GET /marketplace/offer/:id */
   getOffer(id: number): Observable<Offer> {
     return this.http.get<Offer>(`${this.baseUrl}/marketplace/offer/${id}`);

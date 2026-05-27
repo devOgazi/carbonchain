@@ -1,4 +1,4 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MarketplaceStore } from '../core/store/marketplace.store';
 import { AuthService } from '../core/services/auth.service';
@@ -59,43 +59,18 @@ import { TranslatePipe } from '../core/pipes/translate.pipe';
     </div>
   `,
   styles: [`
-    .marketplace { max-width: 900px; margin: 0 auto; }
-    h1 { margin-bottom: 1rem; }
-    .auth-prompt { display: flex; flex-direction: column; gap: 0.75rem; align-items: flex-start; }
-    .toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
-    .subtitle { color: #666; font-size: 0.9rem; }
-    .status { color: #888; }
-    .error { color: #e53935; }
-    .offer-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
-    .offer-table th, .offer-table td { padding: 0.6rem 0.8rem; border-bottom: 1px solid #eee; text-align: left; }
-    .offer-table th { background: #f5f5f5; font-weight: 600; }
-    .mono { font-family: monospace; }
-    .badge { padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem; text-transform: uppercase; }
-    .badge-open { background: #e8f5e9; color: #2e7d32; }
-    .btn { padding: 0.4rem 1rem; border-radius: 6px; cursor: pointer; border: none; font-size: 0.85rem; }
-    .btn-primary { background: #4caf50; color: #fff; }
+    .marketplace { max-width: 960px; margin: 0 auto; padding: 1rem; }
+    h1 { margin-bottom: 1.5rem; }
+    .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 10; }
+    .modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 11; }
   `],
 })
-export class MarketplaceComponent implements OnInit {
-  protected readonly store = inject(MarketplaceStore);
-  protected readonly auth = inject(AuthService);
-  protected readonly wallet = inject(StellarWalletService);
+export class MarketplaceComponent {
+  protected readonly selectedOffer = signal<Offer | null>(null);
 
-  ngOnInit(): void {
-    const key = this.wallet.publicKey();
-    if (key) this.store.loadOffersBySeller(key);
-  }
-
-  refresh(): void {
-    const key = this.wallet.publicKey();
-    if (key) this.store.loadOffersBySeller(key);
-  }
-
-  formatTonnes(raw: string): string {
-    return (Number(raw) / 1_000_000).toLocaleString(undefined, { maximumFractionDigits: 2 }) + ' t';
-  }
-
-  formatXlm(stroops: string): string {
-    return (Number(stroops) / 10_000_000).toLocaleString(undefined, { maximumFractionDigits: 2 });
+  onBuy(offer: Offer): void {
+    // TODO: wire up to retirement/purchase flow
+    alert(`Buy flow for offer ${offer.id} — coming soon.`);
+    this.selectedOffer.set(null);
   }
 }
