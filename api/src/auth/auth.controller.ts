@@ -9,12 +9,15 @@ import {
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { AuthGuard } from '@nestjs/passport';
+import { ThrottlerGuard, Throttle } from '../common/throttler.guard';
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  /** GET /auth/challenge?account=G... */
+  /** GET /auth/challenge?account=G... — 10 requests per minute per IP */
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ limit: 10, ttl: 60_000 })
   @Get('challenge')
   getChallenge(@Query('account') account: string): {
     transaction: string;

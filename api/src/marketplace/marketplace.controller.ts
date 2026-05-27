@@ -14,6 +14,12 @@ import { Offer } from '../shared';
 export class MarketplaceController {
   constructor(private readonly marketplaceService: MarketplaceService) {}
 
+  /** GET /marketplace/listings — all active offers */
+  @Get('listings')
+  getListings(): Promise<Offer[]> {
+    return this.marketplaceService.getListings();
+  }
+
   @Post('offer')
   createOffer(@Body() dto: CreateOfferDto): Promise<{ offerId: string }> {
     return this.marketplaceService.createOffer(dto);

@@ -7,7 +7,9 @@ export class ProjectsController {
   constructor(private readonly projectsService: ProjectsService) {}
 
   @Post()
-  create(@Body() data: Omit<ProjectProfile, 'id'>): ProjectProfile {
+  create(
+    @Body() data: Omit<ProjectProfile, 'id' | 'documents_cid'> & { documents?: Record<string, unknown> },
+  ): Promise<ProjectProfile> {
     return this.projectsService.createProject(data);
   }
 

@@ -126,5 +126,43 @@
         </aside>
       }
     }
+
+    <!-- Retirement History -->
+    <section class="retirement-section" aria-label="Retirement history">
+      <h2 class="section-title">Retirement History</h2>
+
+      @if (retirementsLoading()) {
+        <p class="status-msg" aria-live="polite">Loading retirements…</p>
+      } @else if (retirementsError()) {
+        <p class="alert alert--error" role="alert">{{ retirementsError() }}</p>
+      } @else if (retirements().length === 0) {
+        <p class="status-msg">No retirements yet.</p>
+      } @else {
+        <table class="credits-table" aria-label="Retirement records">
+          <thead>
+            <tr>
+              <th scope="col">ID</th>
+              <th scope="col">Credit</th>
+              <th scope="col">Tonnes Retired</th>
+              <th scope="col">Reason</th>
+              <th scope="col">Date</th>
+              <th scope="col">Tx Hash</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (r of retirements(); track r.id) {
+              <tr class="credits-table__row">
+                <td class="monospace">{{ r.id | slice:0:8 }}…</td>
+                <td class="monospace">{{ r.credit_id | slice:0:8 }}…</td>
+                <td>{{ formatTonnes(r.tonnes_retired) }}</td>
+                <td>{{ r.reason }}</td>
+                <td>{{ formatDate(r.retired_at) }}</td>
+                <td class="monospace">{{ r.tx_hash | slice:0:12 }}…</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+    </section>
   }
 </div>
