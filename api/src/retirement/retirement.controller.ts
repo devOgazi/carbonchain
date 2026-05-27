@@ -1,4 +1,5 @@
 import { Controller, Post, Get, Param, Body, UseGuards, Query, ParseIntPipe, DefaultValuePipe } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { RetirementService, RetireDto } from './retirement.service';
 import { RetirementRecord } from '../shared';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -24,7 +25,9 @@ export class RetirementController {
   /** POST /retirement — protected: requires JWT */
   @UseGuards(JwtAuthGuard)
   @Post()
-  retire(@Body() dto: RetireDto): Promise<{ retirementId: string }> {
+  retire(
+    @Body() dto: RetireDto,
+  ): Promise<{ retirementId: string; certificateIpfsHash: string }> {
     return this.retirementService.retire(dto);
   }
 

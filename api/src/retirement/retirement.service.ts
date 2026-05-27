@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment */
 import { Injectable, Logger, NotFoundException, Inject } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { StellarService } from '../stellar/stellar.service';
@@ -6,8 +5,10 @@ import { StellarKeypairService } from '../stellar/stellar-keypair.service';
 import { nativeToScVal, scValToNative } from '@stellar/stellar-sdk';
 import { RetirementRecord } from '../shared';
 import { RetirementEntity } from './retirement.entity';
-import {
+import type {
   IRetirementRepository,
+} from './retirement.repository';
+import {
   RETIREMENT_REPOSITORY,
 } from './retirement.repository';
 import { PageResult } from '../credits/credit.repository';
@@ -53,10 +54,18 @@ export class RetirementService {
     );
   }
 
-  async retire(dto: RetireDto): Promise<{ retirementId: string }> {
+  /**
+   * Retire a carbon credit on-chain, then generate a PDF certificate and
+   * pin it to IPFS via Pinata.  Returns both the on-chain retirement ID and
+   * the IPFS hash of the certificate.
+   */
+  async retire(
+    dto: RetireDto,
+  ): Promise<{ retirementId: string; certificateIpfsHash: string }> {
     this.logger.log(
       `Retiring credit ${dto.creditId} for ${dto.buyerPublicKey}`,
     );
+
     const args = [
       nativeToScVal(dto.buyerPublicKey, { type: 'address' }),
       nativeToScVal(Buffer.from(dto.creditId, 'hex'), { type: 'bytes' }),
@@ -64,6 +73,7 @@ export class RetirementService {
       nativeToScVal(dto.reason, { type: 'string' }),
       nativeToScVal(this.registryContractId, { type: 'address' }),
     ];
+
     const signer = this.keypairService.getAdminKeypair();
     const response = await this.stellarService.invokeContract(
       this.retirementContractId,
@@ -71,6 +81,7 @@ export class RetirementService {
       args,
       signer,
     );
+
     const rv = (response as unknown as Record<string, unknown>).returnValue;
     const retirementId = rv
       ? Buffer.from(
@@ -152,14 +163,6 @@ export class RetirementService {
       this.logger.log(`Verifying certificate: ${certificateId}`);
       const retirement = await this.getRetirement(certificateId);
 
-      // Fetch transaction details from Stellar to verify on-chain proof
-      const txHash = await this.stellarService.getTransactionHash(
-        certificateId,
-      );
-      const ledgerSequence = await this.stellarService.getLedgerSequence(
-        certificateId,
-      );
-
       return {
         id: retirement.id,
         credit_id: retirement.credit_id,
@@ -167,9 +170,8 @@ export class RetirementService {
         tonnes_retired: retirement.tonnes_retired,
         reason: retirement.reason,
         retired_at: retirement.retired_at,
-        tx_hash: txHash || '',
+        tx_hash: retirement.tx_hash || '',
         verified: true,
-        ledger_sequence: ledgerSequence,
       };
     } catch (error: unknown) {
       this.logger.error(
