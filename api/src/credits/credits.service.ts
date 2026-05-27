@@ -5,6 +5,12 @@ import { StellarService } from '../stellar/stellar.service';
 import { StellarKeypairService } from '../stellar/stellar-keypair.service';
 import { scValToNative, nativeToScVal } from '@stellar/stellar-sdk';
 import { CreditMetadata, CreditStatus } from '../shared';
+import { CreditEntity } from './credit.entity';
+import {
+  ICreditRepository,
+  CREDIT_REPOSITORY,
+  PageResult,
+} from './credit.repository';
 
 export class IssueCreditDto {
   issuerPublicKey: string;
@@ -37,6 +43,7 @@ export class CreditsService {
     private stellarService: StellarService,
     private configService: ConfigService,
     private keypairService: StellarKeypairService,
+    @Inject(CREDIT_REPOSITORY) private readonly creditRepo: ICreditRepository,
   ) {
     this.contractId =
       this.configService.get<string>('CREDIT_REGISTRY_CONTRACT_ID') || '';
@@ -68,10 +75,30 @@ export class CreditsService {
           ) as Uint8Array,
         ).toString('hex')
       : 'unknown';
+
+    // Persist to off-chain index
+    const entity = new CreditEntity();
+    entity.id = creditId;
+    entity.projectId = dto.projectId;
+    entity.issuer = dto.issuerPublicKey;
+    entity.vintageYear = dto.vintageYear;
+    entity.methodology = dto.methodology;
+    entity.geography = dto.geography;
+    entity.tonnes = dto.tonnes;
+    entity.ipfsHash = dto.ipfsHash;
+    entity.status = CreditStatus.Pending;
+    entity.issuedAt = Math.floor(Date.now() / 1000);
+    await this.creditRepo.save(entity);
+
     return { creditId };
   }
 
   async getCredit(creditId: string): Promise<CreditMetadata> {
+    // Try off-chain index first
+    const cached = await this.creditRepo.findById(creditId);
+    if (cached) return this.entityToMetadata(cached);
+
+    // Fall back to on-chain read
     try {
       this.logger.log(`Fetching credit metadata for ID: ${creditId}`);
       const args = [
