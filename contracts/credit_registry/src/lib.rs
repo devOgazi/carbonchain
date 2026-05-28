@@ -29,7 +29,7 @@ use crate::storage::{
     set_admin, get_admin, has_admin,
     set_credit, get_credit,
     get_verifiers, set_verifiers, is_verifier,
-    add_credit_to_project, get_credits_by_project,
+    add_credit_to_project, get_credits_by_project, get_credit_by_project_vintage, set_credit_by_project_vintage,
     set_retirement_contract, get_retirement_contract,
     set_paused, is_paused,
     get_nonce, consume_nonce,
@@ -357,6 +357,14 @@ impl CreditRegistry {
             return Err(CarbonChainError::InvalidMetadata);
         }
 
+        if let Some(existing_id) = get_credit_by_project_vintage(&env, &project_id, vintage_year) {
+            if let Some(existing_credit) = get_credit(&env, &existing_id) {
+                if existing_credit.status == CreditStatus::Pending || existing_credit.status == CreditStatus::Active {
+                    return Err(CarbonChainError::DuplicateCredit);
+                }
+            }
+        }
+
         // Include a per-contract nonce so two credits for the same project get distinct IDs.
         let nonce: u64 = env.storage().instance().get(&DataKey::CreditNonce).unwrap_or(0u64);
         env.storage().instance().set(&DataKey::CreditNonce, &(nonce + 1));
@@ -377,6 +385,7 @@ impl CreditRegistry {
         };
 
         set_credit(&env, &id, &metadata);
+        set_credit_by_project_vintage(&env, &project_id, vintage_year, &id);
         add_credit_to_project(&env, &project_id, &id);
 
         // Issue 1: track pending credits per verifier so remove_verifier can block removal.
@@ -1204,6 +1213,117 @@ impl CreditRegistry {
             &1_000_000_000_000_000,
             &String::from_str(&env, "bafybei123"),
             &nonce,
+        );
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_submit_credit_duplicate_project_vintage_fails() {
+        let (env, client, admin, verifier) = setup();
+        let issuer = Address::generate(&env);
+        let nonce = client.get_nonce(&issuer);
+        assert!(client.try_submit_credit(
+            &issuer,
+            &String::from_str(&env, "PROJ-001"),
+            &2024,
+            &String::from_str(&env, "VCS"),
+            &String::from_str(&env, "NG"),
+            &1_000_000,
+            &String::from_str(&env, "bafybei123"),
+            &nonce,
+        ).is_ok());
+
+        let nonce2 = client.get_nonce(&issuer);
+        let duplicate = client.try_submit_credit(
+            &issuer,
+            &String::from_str(&env, "PROJ-001"),
+            &2024,
+            &String::from_str(&env, "VCS"),
+            &String::from_str(&env, "NG"),
+            &1_000_000,
+            &String::from_str(&env, "bafybei123"),
+            &nonce2,
+        );
+        assert_eq!(duplicate, Err(CarbonChainError::DuplicateCredit));
+
+        // Approve the first credit and ensure duplicates remain blocked for Active status.
+        let vnonce = client.get_nonce(&verifier);
+        client.register_verifier(&admin, &verifier, &vnonce);
+        let vnonce2 = client.get_nonce(&verifier);
+        let credit_ids = client.list_credits_by_project(&String::from_str(&env, "PROJ-001"));
+        let first_id = credit_ids.get(0).unwrap();
+        client.approve_and_mint(&verifier, first_id, &vnonce2);
+
+        let nonce3 = client.get_nonce(&issuer);
+        let duplicate_active = client.try_submit_credit(
+            &issuer,
+            &String::from_str(&env, "PROJ-001"),
+            &2024,
+            &String::from_str(&env, "VCS"),
+            &String::from_str(&env, "NG"),
+            &1_000_000,
+            &String::from_str(&env, "bafybei123"),
+            &nonce3,
+        );
+        assert_eq!(duplicate_active, Err(CarbonChainError::DuplicateCredit));
+    }
+
+    #[test]
+    fn test_submit_credit_allows_same_project_different_vintage() {
+        let (env, client, _, _) = setup();
+        let issuer = Address::generate(&env);
+        let nonce = client.get_nonce(&issuer);
+        assert!(client.try_submit_credit(
+            &issuer,
+            &String::from_str(&env, "PROJ-001"),
+            &2024,
+            &String::from_str(&env, "VCS"),
+            &String::from_str(&env, "NG"),
+            &1_000_000,
+            &String::from_str(&env, "bafybei123"),
+            &nonce,
+        ).is_ok());
+
+        let nonce2 = client.get_nonce(&issuer);
+        let result = client.try_submit_credit(
+            &issuer,
+            &String::from_str(&env, "PROJ-001"),
+            &2025,
+            &String::from_str(&env, "VCS"),
+            &String::from_str(&env, "NG"),
+            &1_000_000,
+            &String::from_str(&env, "bafybei123"),
+            &nonce2,
+        );
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_submit_credit_allows_different_project_same_vintage() {
+        let (env, client, _, _) = setup();
+        let issuer = Address::generate(&env);
+        let nonce = client.get_nonce(&issuer);
+        assert!(client.try_submit_credit(
+            &issuer,
+            &String::from_str(&env, "PROJ-001"),
+            &2024,
+            &String::from_str(&env, "VCS"),
+            &String::from_str(&env, "NG"),
+            &1_000_000,
+            &String::from_str(&env, "bafybei123"),
+            &nonce,
+        ).is_ok());
+
+        let nonce2 = client.get_nonce(&issuer);
+        let result = client.try_submit_credit(
+            &issuer,
+            &String::from_str(&env, "PROJ-002"),
+            &2024,
+            &String::from_str(&env, "VCS"),
+            &String::from_str(&env, "NG"),
+            &1_000_000,
+            &String::from_str(&env, "bafybei123"),
+            &nonce2,
         );
         assert!(result.is_ok());
     }
