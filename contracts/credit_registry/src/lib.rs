@@ -1275,6 +1275,49 @@ impl CreditRegistry {
         assert!(result.is_err());
     }
 
+    #[test]
+    fn test_approve_and_mint_fails_for_active_credit() {
+        let (env, client, admin, verifier) = setup();
+        let nonce = client.get_nonce(&admin);
+        client.register_verifier(&admin, &verifier, &nonce);
+        let issuer = Address::generate(&env);
+        let id = submit_test_credit(&env, &client, &issuer);
+        let vnonce = client.get_nonce(&verifier);
+        client.approve_and_mint(&verifier, &id, &vnonce);
+        let vnonce2 = client.get_nonce(&verifier);
+        let result = client.try_approve_and_mint(&verifier, &id, &vnonce2);
+        assert_eq!(result, Err(CarbonChainError::InvalidStatusTransition));
+    }
+
+    #[test]
+    fn test_approve_and_mint_fails_for_flagged_credit() {
+        let (env, client, admin, verifier) = setup();
+        let nonce = client.get_nonce(&admin);
+        client.register_verifier(&admin, &verifier, &nonce);
+        let issuer = Address::generate(&env);
+        let id = submit_test_credit(&env, &client, &issuer);
+        let vnonce = client.get_nonce(&verifier);
+        client.flag_credit(&verifier, &id, &String::from_str(&env, "fraud"), &vnonce);
+        let vnonce2 = client.get_nonce(&verifier);
+        let result = client.try_approve_and_mint(&verifier, &id, &vnonce2);
+        assert_eq!(result, Err(CarbonChainError::InvalidStatusTransition));
+    }
+
+    #[test]
+    fn test_approve_and_mint_fails_for_retired_credit() {
+        let (env, client, admin, verifier) = setup();
+        let nonce = client.get_nonce(&admin);
+        client.register_verifier(&admin, &verifier, &nonce);
+        let issuer = Address::generate(&env);
+        let id = submit_test_credit(&env, &client, &issuer);
+        let vnonce = client.get_nonce(&verifier);
+        client.approve_and_mint(&verifier, &id, &vnonce);
+        client.mark_retired(&id);
+        let vnonce2 = client.get_nonce(&verifier);
+        let result = client.try_approve_and_mint(&verifier, &id, &vnonce2);
+        assert_eq!(result, Err(CarbonChainError::InvalidStatusTransition));
+    }
+
     // ── Pause tests ──────────────────────────────────────────────────────────
 
     #[test]
