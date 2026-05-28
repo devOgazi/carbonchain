@@ -16,18 +16,41 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown
-      - name: Rust Cache
-        uses: Swatinem/rust-cache@v2
+      # #47 — cache cargo registry and build artifacts for all four contracts
+      - name: Cache cargo dependencies
+        uses: actions/cache@v4
         with:
-          workspaces: contracts
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            contracts/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('contracts/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
       - name: Build Contracts
         run: cd contracts && cargo build --target wasm32-unknown-unknown
-      - name: Run Tests
-        run: cd contracts && cargo test
+      # #47 — run tests for all four contracts (credit_registry, retirement, marketplace, mrv_oracle)
+      - name: Run Contract Tests
+        run: cd contracts && cargo test --workspace
 
   api:
     name: Backend API (NestJS)
     runs-on: ubuntu-latest
+    # #48 — PostgreSQL service container for e2e tests
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: carbonchain
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
       - name: Setup Node.js
@@ -42,8 +65,19 @@ jobs:
         run: cd api && npm run lint
       - name: Build
         run: cd api && npm run build
-      - name: Run Tests
+      # #48 — run unit tests
+      - name: Run Unit Tests
         run: cd api && npm run test
+      # #48 — run e2e tests with postgres available
+      - name: Run E2E Tests
+        run: cd api && npm run test:e2e
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/carbonchain
+          JWT_SECRET: ci-test-secret
+          ADMIN_SECRET_KEY: SAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+          STELLAR_NETWORK: testnet
+          STELLAR_HORIZON_URL: https://horizon-testnet.stellar.org
+          STELLAR_SOROBAN_RPC: https://soroban-testnet.stellar.org
 
   deploy:
     name: Testnet Deploy + Smoke Tests
