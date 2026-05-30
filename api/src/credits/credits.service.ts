@@ -178,9 +178,12 @@ export class CreditsService {
     const effectiveStatus: string = filter.status ?? CreditStatus.Active;
     const effectiveFilter = { ...filter, status: effectiveStatus };
 
-    this.logger.log(`Listing credits with filters: ${JSON.stringify(effectiveFilter)}`);
+    // Default to Active when client does not provide a status filter
+    if (!filter.status) {
+      filter.status = CreditStatus.Active;
+    }
 
-    const cacheKey = LIST_CREDITS_KEY(JSON.stringify(effectiveFilter));
+    const cacheKey = LIST_CREDITS_KEY(JSON.stringify(filter));
     const cachedResult = await this.cache.get<{
       data: CreditMetadata[];
       total: number;
@@ -192,23 +195,15 @@ export class CreditsService {
       return cachedResult;
     }
 
-    // Resolve the requested status to a CreditStatus enum value so we can
-    // delegate the primary filter to the repository (avoids a full table scan
-    // when a DB-backed repo is wired in).
-    const statusEnum = Object.values(CreditStatus).find(
-      (v) => v.toLowerCase() === effectiveStatus.toLowerCase(),
-    ) as CreditStatus | undefined;
-
-    // Fetch all credits matching the status from the off-chain index.
-    // Use a large page size here; the repository handles the actual storage scan.
-    // Secondary filters (methodology, geography, etc.) are applied in-memory below.
-    let candidates: CreditMetadata[];
-    if (statusEnum) {
-      const repoResult = await this.creditRepo.findByStatus(statusEnum, 1, 10_000);
-      candidates = repoResult.data.map((e) => this.entityToMetadata(e));
-    } else {
-      // Unknown status value — return empty rather than leaking all records.
-      candidates = [];
+    // Fetch all credits from the off-chain repository and map to metadata.
+    // Use a large limit to retrieve the full index for server-side filtering.
+    let allCredits: CreditMetadata[] = [];
+    try {
+      const repoResult = await this.creditRepo.findAll(1, 1000000);
+      allCredits = repoResult.data.map((e) => this.entityToMetadata(e));
+    } catch (err) {
+      this.logger.warn(`Failed to fetch credits from repo: ${(err as Error).message}`);
+      allCredits = [];
     }
 
     // Apply secondary filters
