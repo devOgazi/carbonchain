@@ -28,7 +28,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-
       - name: Build Contracts
-        run: cd contracts && cargo build --target wasm32v1-none
+        run: cd contracts && cargo build --target wasm32v1-none --release
       # #47 — run credit_registry tests standalone (avoids workspace feature unification)
       - name: Run Credit Registry Tests
         run: cd contracts/credit_registry && cargo test
