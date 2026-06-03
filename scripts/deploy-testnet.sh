@@ -86,7 +86,8 @@ stellar contract invoke \
   --network testnet \
   -- initialize \
   --admin "$ADMIN_ADDRESS" \
-  --retirement-contract "$RETIREMENT_ID"
+  --retirement-contract "$RETIREMENT_ID" \
+  --required-approvals 1
 
 log "Initializing retirement..."
 stellar contract invoke \
