@@ -8,6 +8,7 @@ import {
   UseGuards,
   DefaultValuePipe,
   ParseIntPipe,
+  Request,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { CreditsService, IssueCreditDto } from './credits.service';
@@ -93,5 +94,27 @@ export class CreditsController {
     @Query('limit', new DefaultValuePipe(20), ParseIntPipe) _limit: number,
   ): Promise<string[]> {
     return this.creditsService.listCreditsByProject(projectId);
+  }
+
+  @ApiOperation({ summary: 'Transfer a credit to another address' })
+  @UseGuards(JwtAuthGuard)
+  @Post(':id/transfer')
+  async transferCredit(
+    @Param('id') creditId: string,
+    @Body() dto: { to: string },
+    @Request() req: any,
+  ): Promise<CreditMetadata> {
+    return this.creditsService.transferCredit(creditId, dto.to, req.user.account);
+  }
+
+  @ApiOperation({ summary: 'Split a credit into two child credits' })
+  @UseGuards(JwtAuthGuard)
+  @Post(':id/split')
+  async splitCredit(
+    @Param('id') creditId: string,
+    @Body() dto: { splitTonnes: number },
+    @Request() req: any,
+  ): Promise<{ childCredit1: string; childCredit2: string }> {
+    return this.creditsService.splitCredit(creditId, dto.splitTonnes, req.user.account);
   }
 }
