@@ -15,21 +15,12 @@ import { CreditEntity } from './credit.entity';
 import type { ICreditRepository, PageResult } from './credit.repository';
 import { CREDIT_REPOSITORY } from './credit.repository';
 import { CacheService } from '../common/cache.service';
+import { IssueCreditDto } from './dto/issue-credit.dto';
 
 // Cache key helpers
 const CREDIT_KEY = (id: string) => `credits:${id}`;
 const LIST_CREDITS_KEY = (filter: string) => `credits:list:${filter}`;
 const CREDIT_TTL = 120; // seconds
-
-export class IssueCreditDto {
-  issuerPublicKey: string;
-  projectId: string;
-  vintageYear: number;
-  methodology: string;
-  geography: string;
-  tonnes: string;
-  ipfsHash: string;
-}
 
 interface ListCreditsFilter {
   methodology?: string;
