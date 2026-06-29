@@ -374,10 +374,10 @@ impl CreditRegistry {
         }
 
         // Include a per-contract nonce so two credits for the same project get distinct IDs.
-        let nonce: u64 = env.storage().instance().get(&DataKey::CreditNonce).unwrap_or(0u64);
-        env.storage().instance().set(&DataKey::CreditNonce, &(nonce + 1));
+        let credit_nonce: u64 = env.storage().instance().get(&DataKey::CreditNonce).unwrap_or(0u64);
+        env.storage().instance().set(&DataKey::CreditNonce, &(credit_nonce + 1));
         let mut preimage = project_id.clone().to_xdr(&env);
-        preimage.append(&nonce.to_xdr(&env));
+        preimage.append(&credit_nonce.to_xdr(&env));
         let id: BytesN<32> = env.crypto().sha256(&preimage).into();
         let metadata = CreditMetadata {
             project_id: project_id.clone(),
@@ -1518,7 +1518,7 @@ mod tests {
             &String::from_str(&env, "Verified Carbon Standard"),
             &anonce,
         );
-        let anonce_proj = client.get_nonce(&admin);
+        let _anonce_proj = client.get_nonce(&admin);
         client.register_project(
             &admin,
             &String::from_str(&env, "PROJ-001"),
@@ -1565,7 +1565,7 @@ mod tests {
             &String::from_str(&env, "Verified Carbon Standard"),
             &anonce,
         );
-        let anonce_proj = client.get_nonce(&admin);
+        let _anonce_proj = client.get_nonce(&admin);
         client.register_project(
             &admin,
             &String::from_str(&env, "PROJ-001"),
@@ -1573,7 +1573,7 @@ mod tests {
             &String::from_str(&env, "Desc"),
             &String::from_str(&env, "NG"),
         );
-        let anonce_proj2 = client.get_nonce(&admin);
+        let _anonce_proj2 = client.get_nonce(&admin);
         client.register_project(
             &admin,
             &String::from_str(&env, "PROJ-002"),

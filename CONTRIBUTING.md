@@ -265,11 +265,13 @@ cd contracts && cargo fmt --all
 
 Project style is configured in `contracts/rustfmt.toml` (100-char line width, 2021 edition, grouped imports). CI will fail if any contract is not formatted.
 
-Lint with clippy:
+Lint with clippy — **zero warnings are allowed** (`-D warnings` is enforced by CI):
 
 ```bash
-cargo clippy -- -D warnings
+cd contracts && cargo clippy --all-targets -- -D warnings
 ```
+
+Fix all warnings before opening a PR. Do not use `#[allow(...)]` to silence a warning without a documented reason in a comment on the same line.
 
 - Add doc comments (`///`) for all public contract functions
 - Use the `CarbonChainError` type for all error handling (see `docs/features/ERROR_CODES_REFERENCE.md`)

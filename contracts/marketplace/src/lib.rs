@@ -375,7 +375,7 @@ impl Marketplace {
     /// - [`MarketplaceError::OfferNotFound`] — no offer exists for `offer_id`.
     /// - [`MarketplaceError::OfferExpired`] — offer has expired (also marks it inactive).
     pub fn get_offer(env: Env, offer_id: u64) -> Result<Offer, MarketplaceError> {
-        let mut offer: Offer = env.storage()
+        let offer: Offer = env.storage()
             .persistent()
             .get(&DataKey::Offer(offer_id))
             .ok_or(MarketplaceError::OfferNotFound)?;

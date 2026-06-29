@@ -332,7 +332,7 @@ impl MrvOracle {
                 // Best-effort cross-contract call to flag credit in registry;
                 // swallow errors (oracle may not be a verifier on the registry)
                 let flag_args: Vec<Val> = (oracle.clone(), cid.clone(), String::from_str(&env, "MRV anomaly detected"), 0u64).into_val(&env);
-                let _ = env.try_invoke_contract::<Val, Val>(
+                let _: Result<Val, Val> = env.try_invoke_contract::<Val, Val>(
                     &registry_id,
                     &Symbol::new(&env, "flag_credit"),
                     flag_args,

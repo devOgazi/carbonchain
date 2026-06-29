@@ -234,7 +234,7 @@ impl Retirement {
             let tonne_amount = tonnes.get(i).unwrap();
 
             if tonne_amount <= 0 {
-                panic!("tonnes must be greater than zero");
+                return Err(RetirementError::InvalidTonnes);
             }
 
             let credit: CreditMetadata = env.invoke_contract(
