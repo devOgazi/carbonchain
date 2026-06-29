@@ -1,5 +1,5 @@
 use soroban_sdk::{Env, Address, BytesN, Vec, String};
-use crate::types::{DataKey, CreditMetadata, VerifierReputation, Methodology, ProjectMetadata, Session, AuditLogEntry};
+use crate::types::{DataKey, CreditMetadata, VerifierReputation, Methodology, Session, AuditLogEntry};
 
 /// Minimum TTL in ledgers (~1 year at 5s/ledger).
 pub const MIN_TTL: u32 = 6_307_200;
@@ -28,15 +28,7 @@ pub fn get_credit(env: &Env, id: &BytesN<32>) -> Option<CreditMetadata> {
     env.storage().persistent().get(&DataKey::Credit(id.clone()))
 }
 
-pub fn set_project(env: &Env, project_id: &String, metadata: &ProjectMetadata) {
-    let key = DataKey::Project(project_id.clone());
-    env.storage().persistent().set(&key, metadata);
-    env.storage().persistent().extend_ttl(&key, TTL_THRESHOLD, MIN_TTL);
-}
 
-pub fn get_project(env: &Env, project_id: &String) -> Option<ProjectMetadata> {
-    env.storage().persistent().get(&DataKey::Project(project_id.clone()))
-}
 
 pub fn get_verifiers(env: &Env) -> Vec<Address> {
     env.storage()
@@ -204,26 +196,6 @@ pub fn decrement_verifier_pending(env: &Env, verifier: &Address) {
     if count > 0 {
         set_verifier_pending_count(env, verifier, count - 1);
     }
-}
-
-// ── Credit → assigned verifier mapping ───────────────────────────────────────
-
-pub fn set_credit_assigned_verifier(env: &Env, credit_id: &BytesN<32>, verifier: &Address) {
-    let key = DataKey::CreditAssignedVerifier(credit_id.clone());
-    env.storage().persistent().set(&key, verifier);
-    env.storage().persistent().extend_ttl(&key, TTL_THRESHOLD, MIN_TTL);
-}
-
-pub fn get_credit_assigned_verifier(env: &Env, credit_id: &BytesN<32>) -> Option<Address> {
-    env.storage()
-        .persistent()
-        .get(&DataKey::CreditAssignedVerifier(credit_id.clone()))
-}
-
-pub fn remove_credit_assigned_verifier(env: &Env, credit_id: &BytesN<32>) {
-    env.storage()
-        .persistent()
-        .remove(&DataKey::CreditAssignedVerifier(credit_id.clone()));
 }
 
 // ── Multi-sig approval tracking ───────────────────────────────────────────────
