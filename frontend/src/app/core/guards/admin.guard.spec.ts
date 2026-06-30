@@ -5,7 +5,14 @@ import { adminGuard } from './admin.guard';
 import { AuthService } from '../services/auth.service';
 
 function makeAuthStub(admin: boolean): Partial<AuthService> {
-  return { isAdmin: signal(admin) } as unknown as Partial<AuthService>;
+  // Build a minimal JWT with role=admin or no role
+  const payload = admin ? { role: 'admin' } : {};
+  const fakeJwt = `header.${btoa(JSON.stringify(payload))}.sig`;
+  return {
+    isAdmin: signal(admin),
+    isAuthenticated: signal(true),
+    token: signal<string | null>(fakeJwt),
+  } as unknown as Partial<AuthService>;
 }
 
 function runGuard(): boolean | UrlTree {

@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
-import { Keypair } from '@stellar/stellar-sdk';
+import { Keypair, Operation } from '@stellar/stellar-sdk';
 import { StellarService } from './stellar.service';
 import { SequenceNumberManager } from './sequence-number-manager.service';
 
@@ -42,6 +42,10 @@ jest.mock('@stellar/stellar-sdk', () => {
       ...actual.rpc,
       Server: jest.fn(() => mockSorobanRpcServer),
       Api: actual.rpc.Api,
+      // assembleTransaction is called after a successful simulation.
+      // Return a builder whose .build() echoes back the original transaction
+      // so the service can sign and submit it normally.
+      assembleTransaction: jest.fn((tx: unknown) => ({ build: () => tx })),
     },
   };
 });
@@ -84,7 +88,7 @@ describe('StellarService - sequence number integration', () => {
   let signerKeypair: Keypair;
 
   const CONTRACT_ID =
-    'CDLZFC3SYJYDZT7K4VW4KH2FJ7UKYBJN6HYJ6J3H7KQI33QIDJTF5JHQ';
+    'CAAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQC526';
 
   beforeAll(() => {
     signerKeypair = Keypair.random();
@@ -109,9 +113,8 @@ describe('StellarService - sequence number integration', () => {
       });
       // Simulate a successful simulation + transaction
       mockSimulateTransaction.mockResolvedValue({
-        status: 'SIMULATION_SUCCESS' as any,
+        transactionData: 'AAAAAA==',
         result: { retval: 'test' },
-        footprint: 'AAAAAA==',
       });
       mockSendTransaction.mockResolvedValue({
         status: 'PENDING',
@@ -140,9 +143,8 @@ describe('StellarService - sequence number integration', () => {
       seqNoManager.cacheSequenceNumber(signerKeypair.publicKey(), 100);
 
       mockSimulateTransaction.mockResolvedValue({
-        status: 'SIMULATION_SUCCESS' as any,
+        transactionData: 'AAAAAA==',
         result: { retval: 'test' },
-        footprint: 'AAAAAA==',
       });
       mockSendTransaction.mockResolvedValue({
         status: 'PENDING',
@@ -178,9 +180,8 @@ describe('StellarService - sequence number integration', () => {
       seqNoManager.cacheSequenceNumber(signerKeypair.publicKey(), 50);
 
       mockSimulateTransaction.mockResolvedValue({
-        status: 'SIMULATION_SUCCESS' as any,
+        transactionData: 'AAAAAA==',
         result: { retval: 'test' },
-        footprint: 'AAAAAA==',
       });
 
       // First submission fails with tx_bad_seq
@@ -219,9 +220,8 @@ describe('StellarService - sequence number integration', () => {
       seqNoManager.cacheSequenceNumber(signerKeypair.publicKey(), 50);
 
       mockSimulateTransaction.mockResolvedValue({
-        status: 'SIMULATION_SUCCESS' as any,
+        transactionData: 'AAAAAA==',
         result: { retval: 'test' },
-        footprint: 'AAAAAA==',
       });
 
       const otherError = new Error('insufficient funds');
@@ -242,7 +242,7 @@ describe('StellarService - sequence number integration', () => {
     it('uses cached sequence and retries on tx_bad_seq from Horizon', async () => {
       seqNoManager.cacheSequenceNumber(signerKeypair.publicKey(), 30);
 
-      const mockOp = { type: 'payment' } as any;
+      const mockOp = Operation.bumpSequence({ bumpTo: '99' });
 
       // First submission fails with tx_bad_seq via Horizon error structure
       const badSeqError = new Error('Horizon error') as any;
@@ -278,7 +278,7 @@ describe('StellarService - sequence number integration', () => {
     it('passes through non-tx_bad_seq Horizon errors', async () => {
       seqNoManager.cacheSequenceNumber(signerKeypair.publicKey(), 30);
 
-      const mockOp = { type: 'payment' } as any;
+      const mockOp = Operation.bumpSequence({ bumpTo: '99' });
 
       const otherError = new Error('Horizon error') as any;
       otherError.response = {

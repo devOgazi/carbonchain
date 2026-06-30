@@ -34,12 +34,11 @@ import { Offer } from '@shared';
         @if (store.isLoading()) {
           <p class="status">{{ 'marketplace.loading' | translate }}</p>
         } @else {
-          <ng-container *ngIf="store.error$ | async as err">
-            @if (err) {
-              <p class="error">{{ err }}</p>
-            } @else if (store.activeOffers().length === 0) {
-              <p class="status">{{ 'marketplace.noListings' | translate }}</p>
-            } @else {
+          @if (store.error(); as err) {
+            <p class="error">{{ err }}</p>
+          } @else if (store.activeOffers().length === 0) {
+            <p class="status">{{ 'marketplace.noListings' | translate }}</p>
+          } @else {
               <table class="offer-table">
                 <thead>
                   <tr>
@@ -85,9 +84,8 @@ import { Offer } from '@shared';
                 </button>
               </div>
             }
-          </ng-container>
+          }
         }
-      }
     </div>
   `,
   styles: [

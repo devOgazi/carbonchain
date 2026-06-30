@@ -86,21 +86,37 @@ describe('authInterceptor — 401 redirect', () => {
     expect(navigate).not.toHaveBeenCalled();
   });
 
-  it('token is null after clearSession is invoked (JWT cleared)', () => {
+  it('token is null after clearSession is invoked (JWT cleared)', async () => {
     const tokenSignal = signal<string | null>('some-jwt');
-    TestBed.overrideProvider(AuthService, {
-      useValue: {
-        clearSession: () => tokenSignal.set(null),
-        token: tokenSignal,
-        isAuthenticated: signal(false),
-      },
-    });
 
-    http.get('/api/credits').subscribe({ error: () => {} });
-    controller.expectOne('/api/credits').flush('Unauthorized', {
+    // Reset and re-configure with a custom AuthService stub
+    TestBed.resetTestingModule();
+    await TestBed.configureTestingModule({
+      providers: [
+        provideHttpClient(withInterceptors([authInterceptor])),
+        provideHttpClientTesting(),
+        {
+          provide: AuthService,
+          useValue: {
+            clearSession: () => tokenSignal.set(null),
+            token: tokenSignal,
+            isAuthenticated: signal(false),
+          },
+        },
+        { provide: Router, useValue: { navigate: vi.fn() } },
+        { provide: ToastService, useValue: { show: vi.fn() } },
+      ],
+    }).compileComponents();
+
+    const localHttp = TestBed.inject(HttpClient);
+    const localController = TestBed.inject(HttpTestingController);
+
+    localHttp.get('/api/credits').subscribe({ error: () => {} });
+    localController.expectOne('/api/credits').flush('Unauthorized', {
       status: 401,
       statusText: 'Unauthorized',
     });
     expect(tokenSignal()).toBeNull();
+    localController.verify();
   });
 });
