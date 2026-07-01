@@ -132,25 +132,33 @@ invoke "$CREDIT_REGISTRY_ID" register_methodology \
   --nonce "$NONCE" > /dev/null 2>&1 || true  # may already exist from prior run
 pass "credit_registry.register_methodology() succeeded (or already registered)"
 
-log "Registering test project"
+# Use a run-specific suffix to avoid collisions with prior smoke-test runs on
+# the shared testnet state.  $RANDOM alone is 0-32767; combine two values for
+# a larger space and format to a fixed width so the project-id length stays
+# within contract limits.
+RUN_ID=$(printf '%05d%05d' "$RANDOM" "$RANDOM")
+SMOKE_PROJECT_ID="SMOKE-${RUN_ID}"
+SMOKE_IPFS_HASH="bafybeismoke$(printf '%050d' "$RANDOM")"
+
+log "Registering test project (run-id: $RUN_ID)"
 invoke_as "$ISSUER_SECRET" "$CREDIT_REGISTRY_ID" register_project \
   --owner "$ISSUER_ADDRESS" \
-  --project-id '"SMOKE-PROJ-001"' \
+  --project-id "\"${SMOKE_PROJECT_ID}\"" \
   --name '"Smoke Test Project"' \
   --description '"Automated smoke test project"' \
-  --location '"NG"' 2>&1 || true  # may already exist from prior run
-pass "credit_registry.register_project() succeeded (or already registered)"
+  --location '"NG"'
+pass "credit_registry.register_project() succeeded"
 
 log "Submitting a test credit"
 ISSUER_NONCE=$(invoke "$CREDIT_REGISTRY_ID" get_nonce --address "$ISSUER_ADDRESS")
 CREDIT_ID=$(invoke_as "$ISSUER_SECRET" "$CREDIT_REGISTRY_ID" submit_credit \
   --issuer "$ISSUER_ADDRESS" \
-  --project-id '"SMOKE-PROJ-001"' \
+  --project-id "\"${SMOKE_PROJECT_ID}\"" \
   --vintage-year 2024 \
   --methodology '"VCS"' \
   --geography '"NG"' \
   --tonnes 1000000 \
-  --ipfs-hash '"bafybeismoke000000000000000000000000000000000000000000000000"' \
+  --ipfs-hash "\"${SMOKE_IPFS_HASH}\"" \
   --nonce "$ISSUER_NONCE")
 [[ -n "$CREDIT_ID" ]] || fail "credit_registry.submit_credit() returned empty credit ID"
 pass "credit_registry.submit_credit() returned credit ID: $CREDIT_ID"
