@@ -17,6 +17,13 @@ frontend/src/environments/environment.prod.ts
 Thumbs.db
 *.DS_Store
 
+# Kiro CLI
+.kiro/
+
+# shared/ package compiled output (source is index.ts)
+shared/index.js
+shared/index.d.ts
+
 # IDE
 .vscode/
 .idea/
