@@ -22,6 +22,9 @@ import { CacheService } from '../common/cache.service';
 import { VerifierEntity } from './verifier.entity';
 import type { IVerifierRepository } from './verifier.repository';
 import { VERIFIER_REPOSITORY } from './verifier.repository';
+import { VerifierApplicationEntity, VerifierApplicationStatus } from './verifier-application.entity';
+import type { IVerifierApplicationRepository } from './verifier-application.repository';
+import { VERIFIER_APPLICATION_REPOSITORY } from './verifier-application.repository';
 
 export interface VerifierInfo {
   address: string;
@@ -71,6 +74,8 @@ export class VerifiersService implements OnApplicationBootstrap {
     private readonly cache: CacheService,
     @Inject(VERIFIER_REPOSITORY)
     private readonly verifierRepo: IVerifierRepository,
+    @Inject(VERIFIER_APPLICATION_REPOSITORY)
+    private readonly verifierAppRepo: IVerifierApplicationRepository,
   ) {
     this.contractId = this.configService.get<string>(
       'CREDIT_REGISTRY_CONTRACT_ID',
@@ -697,5 +702,55 @@ export class VerifiersService implements OnApplicationBootstrap {
       syncedAt: entity.syncedAt ?? null,
       unstable: entity.unstable ?? false,
     };
+  }
+
+  // ── Applications (Issue #967) ───────────────────────────────────────────────
+
+  async submitApplication(data: {
+    address: string;
+    name: string;
+    capabilities: string[];
+    documentsCid: string;
+    stakeToken: string;
+    stakeAmount: string;
+  }): Promise<VerifierApplicationEntity> {
+    const repo = this.verifierAppRepo;
+    const existing = await repo.findByAddress(data.address);
+    if (existing && existing.status === VerifierApplicationStatus.Pending) {
+      throw new ConflictException('Application already pending for this address');
+    }
+    const entity = repo.create({
+      address: data.address,
+      name: data.name,
+      capabilities: data.capabilities,
+      documentsCid: data.documentsCid,
+      stakeToken: data.stakeToken,
+      stakeAmount: data.stakeAmount,
+      status: VerifierApplicationStatus.Pending,
+    });
+    return repo.save(entity);
+  }
+
+  async getApplication(address: string): Promise<VerifierApplicationEntity | null> {
+    return this.verifierAppRepo.findByAddress(address);
+  }
+
+  async listApplications(status?: VerifierApplicationStatus): Promise<VerifierApplicationEntity[]> {
+    const all = await this.verifierAppRepo.findAll();
+    if (!status) return all;
+    return all.filter((a) => a.status === status);
+  }
+
+  async reviewApplication(
+    address: string,
+    status: VerifierApplicationStatus,
+    reviewedBy: string,
+  ): Promise<VerifierApplicationEntity | null> {
+    if (status !== VerifierApplicationStatus.Approved && status !== VerifierApplicationStatus.Rejected) {
+      throw new BadRequestException('Invalid review status');
+    }
+    const updated = await this.verifierAppRepo.updateStatus(address, status, reviewedBy);
+    if (!updated) return null;
+    return updated;
   }
 }

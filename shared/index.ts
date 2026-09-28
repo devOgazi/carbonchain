@@ -34,6 +34,19 @@ export interface VerifierReputation {
   disputeCount: number;
 }
 
+export interface VerifierApplicationEntity {
+  address: string;
+  name: string | null;
+  capabilities: string[];
+  documentsCid: string | null;
+  stakeToken: string | null;
+  stakeAmount: string | null;
+  status: 'pending' | 'approved' | 'rejected';
+  reviewedBy: string | null;
+  createdAt: number;
+  updatedAt: number | null;
+}
+
 export interface ProjectProfile {
   id: string;
   name: string;

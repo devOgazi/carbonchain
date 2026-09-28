@@ -8,6 +8,8 @@ import { ConnectWalletComponent } from './core/components/connect-wallet.compone
 import { AdminComponent } from './admin/admin.component';
 import { OfflineComponent } from './offline/offline.component';
 import { CertificatesComponent } from './certificates/certificates.component';
+import { VerifierApplyComponent } from './verifier/verifier-apply.component';
+import { VerifierStatusComponent } from './verifier/verifier-status.component';
 import { authGuard } from './core/guards/auth.guard';
 import { adminGuard } from './core/guards/admin.guard';
 
@@ -33,4 +35,6 @@ export const routes: Routes = [
     component: CertificatesComponent,
     canActivate: [authGuard],
   },
+  { path: 'verifier/apply', component: VerifierApplyComponent },
+  { path: 'verifier/status/:address', component: VerifierStatusComponent },
 ];

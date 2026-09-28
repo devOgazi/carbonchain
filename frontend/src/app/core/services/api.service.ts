@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { CreditMetadata, ProjectProfile, Offer, VerifierReputation } from '@shared';
+import { CreditMetadata, ProjectProfile, Offer, VerifierReputation, VerifierApplicationEntity } from '@shared';
 
 // ---------------------------------------------------------------------------
 // Response types mirroring the NestJS controllers
@@ -380,8 +380,88 @@ export class ApiService {
     return this.http.get<VerifierReputation>(`${this.baseUrl}/verifiers/${address}/reputation`);
   }
 
+  /** GET /verifiers/:address/pending — pending credits for a verifier (admin or self) */
+  getVerifierPending(address: string): Observable<CreditMetadata[]> {
+    return this.http.get<CreditMetadata[]>(`${this.baseUrl}/verifiers/${address}/pending`);
+  }
+
+  /** GET /verifiers/:address/history — approval history for a verifier (admin or self) */
+  getVerifierHistory(address: string): Observable<CreditMetadata[]> {
+    return this.http.get<CreditMetadata[]>(`${this.baseUrl}/verifiers/${address}/history`);
+  }
+
+  /** GET /oracle/:projectId/history */
+  getOracleHistory(
+    projectId: string,
+    page = 1,
+    pageSize = 20,
+  ): Observable<{ data: import('@shared').MrvDataPoint[]; total: number; page: number; pageSize: number }> {
+    const params: Record<string, string> = { page: String(page), pageSize: String(pageSize) };
+    return this.http.get<{ data: import('@shared').MrvDataPoint[]; total: number; page: number; pageSize: number }>(
+      `${this.baseUrl}/oracle/${projectId}/history`,
+      { params },
+    );
+  }
+
+  /** GET /oracle/:projectId/aggregate */
+  getOracleAggregate(projectId: string): Observable<{
+    totalTonnes: string;
+    readingCount: number;
+    anomalyCount: number;
+    latestReading: import('@shared').MrvDataPoint | null;
+    monthlyBreakdown: { month: string; totalTonnes: string; readingCount: number; anomalyCount: number }[];
+  }> {
+    return this.http.get<{
+      totalTonnes: string;
+      readingCount: number;
+      anomalyCount: number;
+      latestReading: import('@shared').MrvDataPoint | null;
+      monthlyBreakdown: { month: string; totalTonnes: string; readingCount: number; anomalyCount: number }[];
+    }>(`${this.baseUrl}/oracle/${projectId}/aggregate`);
+  }
+
+  /** POST /verifiers/applications */
+  submitVerifierApplication(body: {
+    address: string;
+    name: string;
+    capabilities: string[];
+    documentsCid: string;
+    stakeToken: string;
+    stakeAmount: string;
+  }): Observable<VerifierApplicationEntity> {
+    return this.http.post<VerifierApplicationEntity>(`${this.baseUrl}/verifiers/applications`, body);
+  }
+
+  /** GET /verifiers/applications/:address */
+  getVerifierApplication(address: string): Observable<VerifierApplicationEntity | null> {
+    return this.http.get<VerifierApplicationEntity | null>(`${this.baseUrl}/verifiers/applications/${address}`);
+  }
+
+  /** GET /verifiers/admin/applications */
+  listVerifierApplications(token: string, status?: string): Observable<VerifierApplicationEntity[]> {
+    const params: Record<string, string> = {};
+    if (status) params['status'] = status;
+    return this.http.get<VerifierApplicationEntity[]>(`${this.baseUrl}/verifiers/admin/applications`, {
+      params,
+      headers: this.authHeaders(token),
+    });
+  }
+
+  /** POST /verifiers/admin/applications/:address/review */
+  reviewVerifierApplication(
+    address: string,
+    status: string,
+    token: string,
+  ): Observable<VerifierApplicationEntity | null> {
+    return this.http.post<VerifierApplicationEntity | null>(
+      `${this.baseUrl}/verifiers/admin/applications/${address}/review`,
+      { status },
+      { headers: this.authHeaders(token) },
+    );
+  }
+
   /**
-   * POST /verifiers/:address/stake/deposit
+    * POST /verifiers/:address/stake/deposit
    * Deposit stake on behalf of a verifier. Requires JWT.
    */
   depositStake(

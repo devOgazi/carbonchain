@@ -62,6 +62,7 @@ export class StellarWalletService {
   private readonly _balanceError = signal<string | null>(null);
 
   private balancePollTimer: ReturnType<typeof setInterval> | null = null;
+  private _balancePollIntervalMs = 30_000;
 
   readonly publicKey = this._publicKey.asReadonly();
   readonly state = this._state.asReadonly();
@@ -94,6 +95,18 @@ export class StellarWalletService {
   readonly xlmBalance = this._xlmBalance.asReadonly();
   /** Optional fetch error message. */
   readonly balanceError = this._balanceError.asReadonly();
+
+  /** Issue #966 — current balance polling interval in milliseconds. */
+  readonly balancePollIntervalMs = computed(() => this._balancePollIntervalMs);
+
+  /** Issue #966 — update the balance polling interval. */
+  setBalancePollInterval(ms: number): void {
+    this._balancePollIntervalMs = Math.max(1_000, ms);
+    if (this.balancePollTimer && this.isConnected() && this.publicKey()) {
+      this.stopBalancePolling();
+      this.startBalancePolling();
+    }
+  }
 
   constructor() {
     // Mirror the restored session into the shared signals so wallet-scoped
@@ -270,7 +283,7 @@ export class StellarWalletService {
     };
 
     void tick();
-    this.balancePollTimer = setInterval(() => void tick(), 30_000);
+    this.balancePollTimer = setInterval(() => void tick(), this._balancePollIntervalMs);
   }
 
   /** Stop XLM balance polling. */
